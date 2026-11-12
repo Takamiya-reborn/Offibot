@@ -29,15 +29,19 @@ OFFIBOT_MAX_TURNS=20                     # 单次任务最大工具调用轮数
 打开「命令提示符」或「PowerShell」,cd 到 exe 所在目录:
 
 ```bat
-.\offibot.exe                          :: 进入交互式对话(推荐)
+.\offibot.exe
 .\offibot.exe run "创建一个记录团队分工的 Excel 表"
-.\offibot.exe skills                   :: 查看可用技能
-.\offibot.exe tools                    :: 查看支持的文件操作
+.\offibot.exe skills
+.\offibot.exe tools
 ```
+
+第一条进入交互式对话(推荐);`skills` 查看可用技能;`tools` 查看支持的文件操作。
 
 交互模式中可以连续对话,输入 `/reset` 清空上下文,`/skills` 查看技能,`/exit` 或 `Ctrl+C` 退出。
 
-生成的文件按类型自动归档到当前目录下的三个文件夹:`./docx`(Word)、`./xlsx`(Excel)、`./pptx`(PowerPoint),文件夹会自动创建;也可以直接告诉 AI 保存到其他位置。
+生成的文件按类型自动归档到 **exe 所在目录**下的 `.output` 文件夹:`.output/docx`(Word)、`.output/xlsx`(Excel)、`.output/pptx`(PowerPoint),文件夹会自动创建;也可以直接告诉 AI 保存到其他位置。
+
+程序运行还会在 exe 所在目录维护一个 `.offibot` 工作目录(自动创建):模型完成任务时的草稿和中间文件存放在 `.offibot/drafts/`,会话日志存放在 `.offibot/logs/`。这两个目录不影响最终产出,可随时整体删除。
 
 ### 3. 自定义技能(可选)
 
@@ -51,14 +55,15 @@ OFFIBOT_MAX_TURNS=20                     # 单次任务最大工具调用轮数
 src/offibot/
 ├── cli.py                # 命令行入口(chat / run / skills / tools 子命令)
 ├── core/                 # AI 部分
-│   ├── config.py         # 配置(.env、模型、轮数)
-│   ├── agent.py          # Agent 主循环(OpenAI function calling)
+│   ├── config.py         # 配置(.env、模型、轮数)与目录约定(.output / .offibot)
+│   ├── agent.py          # Agent 主循环(OpenAI function calling)+ 会话日志
 │   └── skill.py          # 技能加载器(skills/*.md 的调用接口)
 ├── tools/                # Office 工具
-│   ├── base.py           # @tool 装饰器 + 注册表(自动生成 JSON Schema)
+│   ├── base.py           # @tool 装饰器 + 注册表(自动生成 JSON Schema)+ 路径解析
 │   ├── docx_tools.py     # Word 工具
 │   ├── xlsx_tools.py     # Excel 工具
-│   └── pptx_tools.py     # PowerPoint 工具
+│   ├── pptx_tools.py     # PowerPoint 工具
+│   └── workspace_tools.py # 模型草稿区工具(save/read/list_intermediate)
 └── assets/
     └── skills/           # 内置技能 markdown(随包打包)
 ```

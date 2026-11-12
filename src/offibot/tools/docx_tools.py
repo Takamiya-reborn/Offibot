@@ -1,4 +1,4 @@
-"""Word (.docx) 工具。"""
+# Word (.docx) 工具
 
 from __future__ import annotations
 

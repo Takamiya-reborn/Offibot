@@ -1,4 +1,4 @@
-"""Excel (.xlsx) 工具。"""
+# Excel (.xlsx) 工具
 
 from __future__ import annotations
 
@@ -39,7 +39,9 @@ def xlsx_read(path: str, sheet: str = "", max_rows: int = 50) -> str:
 
 @tool
 def xlsx_write(path: str, data: list[list], sheet: str = "Sheet1") -> str:
-    """把二维数组写入 Excel 工作簿(第一行为表头)。文件不存在则创建。
+    """把二维数组写入 Excel 工作簿(第一行为表头)。
+
+    文件不存在则创建;已存在则保留其他工作表,只覆盖指定 sheet 的内容。
 
     Args:
         path: 输出工作簿路径
@@ -47,9 +49,19 @@ def xlsx_write(path: str, data: list[list], sheet: str = "Sheet1") -> str:
         sheet: 工作表名
     """
     path = resolve_output(path)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = sheet
+    existing = Path(path)
+    if existing.is_file():
+        # 已有文件:保留其他 sheet,仅覆盖目标 sheet
+        wb = load_workbook(path)
+        if sheet in wb.sheetnames:
+            ws = wb[sheet]
+            ws.delete_rows(1, ws.max_row)
+        else:
+            ws = wb.create_sheet(sheet)
+    else:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet
     for row in data:
         ws.append(row)
     wb.save(path)

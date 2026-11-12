@@ -11,3 +11,7 @@ wheels/
 .env
 .env.*
 !.env.example
+
+# 运行时生成的数据(产出文件 / 模型草稿 / 日志)
+.output/
+.offibot/

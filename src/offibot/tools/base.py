@@ -1,22 +1,8 @@
-"""工具基类与注册表。
-
-用法::
-
-    from offibot.tools.base import tool
-
-    @tool
-    def docx_read(path: str, max_chars: int = 8000) -> str:
-        \"\"\"读取 Word 文档的全部文本内容。
-
-        Args:
-            path: 文档路径
-            max_chars: 返回文本的最大字符数
-
-        ...
-
-装饰器会从类型注解和 docstring 自动生成 OpenAI function calling 的 JSON Schema,
-工具函数返回 str(非 str 返回值会被自动转成 str)。
-"""
+# 工具基类与注册表
+# 用法:from offibot.tools.base import tool;@tool 装饰的函数,其类型注解和
+# docstring 会自动生成 OpenAI function calling 的 JSON Schema
+# 注意:工具函数的 docstring(首行=工具描述,Args:=参数说明)是给模型的,
+# 不能删;返回值非 str 会被自动转成 str
 
 from __future__ import annotations
 
@@ -27,31 +13,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, get_args, get_origin, get_type_hints
 
+from offibot.core.config import app_output_dir
+
 _TOOLS: dict[str, "Tool"] = {}
 
 _MAX_OUTPUT_CHARS = 20_000
 
-# 默认输出目录:模型只传文件名时,按扩展名归类到 ./docx ./xlsx ./pptx
+# 默认输出目录:模型只传文件名时,按扩展名归类到 .output/{docx,xlsx,pptx}
 _OUTPUT_DIRS = {".docx": "docx", ".xlsx": "xlsx", ".pptx": "pptx"}
 
 
 def resolve_output(path: str | Path) -> Path:
-    """解析输出路径:未指定目录的文件名重定向到对应的默认目录;父目录不存在则自动创建。"""
+    # 输出路径:未指定目录的文件名重定向到默认目录;父目录不存在则自动创建
     p = Path(path)
     out_dir = _OUTPUT_DIRS.get(p.suffix.lower())
     if p.parent == Path(".") and out_dir:
-        p = Path.cwd() / out_dir / p
+        p = app_output_dir() / out_dir / p
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
 
 def resolve_existing(path: str | Path) -> Path:
-    """解析已有文件路径:裸文件名在当前目录找不到时,去默认输出目录找。"""
+    # 已有文件路径:裸文件名在当前目录找不到时,去默认输出目录找
     p = Path(path)
     if p.parent == Path(".") and not p.is_file():
         out_dir = _OUTPUT_DIRS.get(p.suffix.lower())
         if out_dir:
-            candidate = Path.cwd() / out_dir / p
+            candidate = app_output_dir() / out_dir / p
             if candidate.is_file():
                 return candidate
     return p
@@ -76,6 +64,7 @@ class Tool:
     category: str = "general"
 
     def run(self, **kwargs: Any) -> str:
+        # 执行工具并统一输出:None→"OK",超长截断
         result = self.func(**kwargs)
         if result is None:
             return "OK"
@@ -88,7 +77,7 @@ class Tool:
 
 
 def _json_type(annotation: Any) -> dict[str, Any]:
-    """把 Python 类型注解映射为 JSON Schema 片段。"""
+    # Python 类型注解 → JSON Schema 片段
     if annotation in (inspect.Signature.empty, Any):
         return {"type": "string"}
 
@@ -96,6 +85,7 @@ def _json_type(annotation: Any) -> dict[str, Any]:
     if origin is typing.Union or (
         isinstance(origin, type) and issubclass(origin, types.UnionType)
     ):
+        # Optional[X] 取 X;其他 Union 简化为 string
         non_none = [a for a in get_args(annotation) if a is not type(None)]
         if len(non_none) == 1:
             return _json_type(non_none[0])
@@ -118,7 +108,7 @@ def _json_type(annotation: Any) -> dict[str, Any]:
 
 
 def _parse_docstring(func: Callable[..., Any]) -> tuple[str, dict[str, str]]:
-    """取 docstring 第一段作为描述,解析 Args: 段落得到每个参数的说明。"""
+    # docstring 第一段 = 描述;Args: 段落 = 每个参数的说明
     doc = inspect.getdoc(func) or ""
     lines = doc.splitlines()
     param_docs: dict[str, str] = {}
@@ -142,6 +132,7 @@ def _parse_docstring(func: Callable[..., Any]) -> tuple[str, dict[str, str]]:
 
 
 def _build_schema(func: Callable[..., Any]) -> dict[str, Any]:
+    # 类型注解 + docstring → 完整的 function calling schema
     hints = get_type_hints(func)
     signature = inspect.signature(func)
     description, param_docs = _parse_docstring(func)
@@ -176,7 +167,7 @@ def _build_schema(func: Callable[..., Any]) -> dict[str, Any]:
 
 
 def tool(func: Callable[..., Any]) -> Callable[..., Any]:
-    """注册一个工具函数,函数本身原样返回。"""
+    # 注册工具,函数本身原样返回
     schema = _build_schema(func)
     registered = Tool(
         name=schema["function"]["name"],
@@ -192,7 +183,7 @@ def tool(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def register_tool(func: Callable[..., Any], *, name: str | None = None) -> None:
-    """以编程方式注册工具(用于闭包/带状态的内置工具)。"""
+    # 编程方式注册工具(用于闭包/带状态的内置工具)
     schema = _build_schema(func)
     if name:
         schema["function"]["name"] = name
@@ -222,5 +213,5 @@ def get_tool(name: str) -> Tool | None:
 
 
 def clear_tools() -> None:
-    """仅测试用。"""
+    # 清空注册表,仅测试用
     _TOOLS.clear()

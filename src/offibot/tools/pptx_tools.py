@@ -1,4 +1,4 @@
-"""PowerPoint (.pptx) 工具。"""
+# PowerPoint (.pptx) 工具
 
 from __future__ import annotations
 

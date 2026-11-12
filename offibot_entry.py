@@ -1,4 +1,4 @@
-"""PyInstaller 打包入口:pyinstaller --onefile --collect-data offibot -n offibot offibot_entry.py"""
+# PyInstaller 打包入口(见 package.spec / build.ps1)
 
 from offibot.cli import main
 

@@ -1,4 +1,4 @@
-"""支持 `python -m offibot` 直接运行。"""
+# 支持 `python -m offibot` 直接运行
 
 from offibot.cli import main
 

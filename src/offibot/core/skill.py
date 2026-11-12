@@ -1,19 +1,6 @@
-"""Skill 加载器。
-
-skills 目录下每个 ``*.md`` 文件对应一个技能,格式::
-
-    ---
-    name: report-gen          # 可选,缺省用文件名
-    description: 如何生成周报  # 建议写清楚,模型靠它决定何时加载
-    ---
-
-    (正文为技能指令,模型加载后会作为上下文注入对话)
-
-接口:
-    - ``SkillLoader.load()``   扫描目录,返回全部技能
-    - ``skill_list_tool()``    内置工具:列出可用技能
-    - ``skill_load_tool()``    内置工具:按名称加载技能正文
-"""
+# Skill 加载器:skills 目录下每个 *.md 对应一个技能
+# 格式:frontmatter(name/description)+ 正文(技能指令,模型按需加载为上下文)
+# 接口:SkillLoader.load() 扫描全部技能;make_skill_tools() 注册 list_skills / load_skill 工具
 
 from __future__ import annotations
 
@@ -34,6 +21,7 @@ class Skill:
 
 
 def _parse_skill_md(path: Path) -> Skill:
+    # 解析单个技能 md:frontmatter 取 name/description,缺省用文件名/正文首行
     text = path.read_text(encoding="utf-8")
     name = path.stem
     description = ""
@@ -62,8 +50,7 @@ def _parse_skill_md(path: Path) -> Skill:
 
 
 class SkillLoader:
-    """扫描一个或多个 skills 目录。"""
-
+    # 扫描一个或多个 skills 目录
     def __init__(self, extra_dirs: list[Path] | None = None) -> None:
         dirs = [_BUILTIN_SKILLS_DIR, Path.cwd() / "skills"]
         if extra_dirs:
@@ -71,6 +58,7 @@ class SkillLoader:
         self.dirs: list[Path] = dirs
 
     def load(self) -> dict[str, Skill]:
+        # 每次调用都重新扫描,支持热更新;_ 开头的文件跳过
         skills: dict[str, Skill] = {}
         for directory in self.dirs:
             if not directory.is_dir():
@@ -83,6 +71,7 @@ class SkillLoader:
         return skills
 
     def catalog(self) -> str:
+        # 技能清单文本(list_skills 工具的返回值)
         skills = self.load()
         if not skills:
             return "(当前没有可用技能,可在 skills/ 目录下添加 .md 文件)"
@@ -93,7 +82,7 @@ class SkillLoader:
 
 
 def make_skill_tools(loader: SkillLoader) -> None:
-    """注册两个技能相关的内置工具(供模型在对话中调用)。"""
+    # 注册两个技能相关的内置工具(供模型在对话中调用)
 
     def list_skills() -> str:
         """列出当前所有可用技能及其用途说明。"""

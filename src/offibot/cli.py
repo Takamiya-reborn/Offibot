@@ -1,11 +1,5 @@
-"""Offibot 命令行入口。
-
-用法:
-    offibot chat              交互式对话(默认)
-    offibot run "任务描述"     一次性执行任务
-    offibot skills list       查看可用技能
-    offibot tools list        查看已注册工具
-"""
+# Offibot 命令行入口
+# 子命令:chat 交互式对话(默认) / run "任务描述" 一次性执行 / skills / tools
 
 from __future__ import annotations
 
@@ -21,7 +15,7 @@ from offibot.core.skill import SkillLoader, make_skill_tools
 from offibot.tools import base as tool_registry
 
 
-def build_agent(args: argparse.Namespace) -> Agent:
+def build_agent(args: argparse.Namespace) -> tuple[Agent, SkillLoader]:
     settings = Settings.load(
         skills_dir=Path(args.skills_dir) if args.skills_dir else None,
         model=args.model,
@@ -30,12 +24,11 @@ def build_agent(args: argparse.Namespace) -> Agent:
         extra_dirs=[Path(args.skills_dir)] if args.skills_dir else None
     )
     make_skill_tools(loader)
-    return Agent(settings)
+    return Agent(settings), loader
 
 
 def cmd_chat(args: argparse.Namespace) -> int:
-    agent = build_agent(args)
-    loader = SkillLoader()
+    agent, loader = build_agent(args)
     print(f"Offibot 已启动 (model: {agent.model})。输入 /exit 退出,/reset 清空对话。")
     print(loader.catalog())
     while True:
@@ -64,13 +57,16 @@ def cmd_chat(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    agent = build_agent(args)
+    agent, _ = build_agent(args)
     print(agent.run(args.task))
     return 0
 
 
-def cmd_skills(_: argparse.Namespace) -> int:
-    print(SkillLoader().catalog())
+def cmd_skills(args: argparse.Namespace) -> int:
+    loader = SkillLoader(
+        extra_dirs=[Path(args.skills_dir)] if args.skills_dir else None
+    )
+    print(loader.catalog())
     return 0
 
 
